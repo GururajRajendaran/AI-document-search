@@ -15,6 +15,25 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide"
 )
+st.markdown("""
+<style>
+
+.stTextInput input {
+    border-radius: 12px;
+}
+
+[data-testid="stMetric"] {
+    background: #1e293b;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+.stChatMessage {
+    border-radius: 12px;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # ------------------------
 # Session State
@@ -64,17 +83,48 @@ if uploaded_files:
         chunks
     )
 
+    # Sidebar Dashboard
+
+    with st.sidebar:
+
+        st.title("📊 Dashboard")
+
+        st.metric(
+            "Documents",
+            len(uploaded_files)
+        )
+
+        st.metric(
+            "Chunks",
+            len(chunks)
+        )
+
+        st.markdown("---")
+
+        st.markdown("### Suggested Questions")
+
+        st.markdown("""
+        - How many casual leaves are provided?
+        - What is the work from home policy?
+        - What is the maternity leave duration?
+        - What are employee benefits?
+        """)
+
     st.success("PDFs Loaded Successfully")
 
     st.write(
-        f"Total Chunks Created: {len(chunks)}"
+        f"📄 Total Chunks Created: {len(chunks)}"
     )
 
     question = st.text_input(
-        "Ask a question about the uploaded documents"
+        "💬 Ask a question about the uploaded documents"
     )
 
     if question:
+
+        import time
+
+        start_time = time.time()
 
         question_embedding = get_embedding(
             question
@@ -85,25 +135,36 @@ if uploaded_files:
             chunk_embeddings,
             chunks
         )
-
-        # Create Context
+         # Create Context
 
         context = "\n".join(
             [chunk for score, chunk in results]
         )
 
-        # Gemini Answer
+        with st.spinner(
+            "🤖 Analyzing documents..."
+        ):
 
-        answer = ask_gemini(
-            question,
-            context
+            answer = ask_gemini(
+                question,
+                context
+            )
+
+        end_time = time.time()
+
+        # Chat Style UI
+
+        st.chat_message("user").write(
+            question
         )
 
-        # Display Answer
+        st.chat_message("assistant").write(
+            answer
+        )
 
-        st.subheader("AI Answer")
-
-        st.success(answer)
+        st.caption(
+            f"⏱️ Response generated in {end_time - start_time:.2f} seconds"
+        )
 
         # Save Chat History
 
@@ -114,9 +175,18 @@ if uploaded_files:
             }
         )
 
+        # Update Sidebar
+
+        with st.sidebar:
+
+            st.metric(
+                "Sources Found",
+                len(results)
+            )
+
         # Sources
 
-        st.subheader("Sources")
+        st.subheader("📚 Sources")
 
         for i, (score, chunk) in enumerate(
             results,
@@ -124,8 +194,13 @@ if uploaded_files:
         ):
 
             with st.expander(
-                f"Source {i} | Similarity {score:.4f}"
+                f"📄 Source {i}"
             ):
+
+                st.caption(
+                    f"Relevance Score: {score:.4f}"
+                )
+
                 st.write(chunk)
 
 # ------------------------
@@ -134,15 +209,20 @@ if uploaded_files:
 
 if st.session_state.chat_history:
 
-    st.subheader("Chat History")
+    st.markdown("---")
+
+    st.subheader(
+        "🕒 Previous Conversations"
+    )
 
     for chat in reversed(
         st.session_state.chat_history
     ):
 
         with st.expander(
-            chat["question"]
+            f"💬 {chat['question']}"
         ):
+
             st.write(
                 chat["answer"]
             )
